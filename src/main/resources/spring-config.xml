@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+		http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop-4.0.xsd">
+
+    <!--扫描注解的包-->
+    <context:component-scan base-package="com.ujiuye.crmpro.*.service"></context:component-scan>
+
+    <!--  加载数据配置文件  -->
+    <context:property-placeholder location="classpath*:*.properties"/>
+
+    <!-- 配置数据源,使用 dbcp 连接池 -->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="driverClassName" value="${jdbc.driver}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <property name="maxActive" value="10"/>
+
+    </bean>
+
+    <!-- 创建 spring 提供的 Jdbc 模板,用来操作数据库 -->
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <!-- 配置sqlsessionFactory -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!-- mybatis 的配置文件路径 -->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <!-- SqlSessionFactory需要数据源信息,之前是写在sqlmapconfig.xml,现在需要重新指定 -->
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!-- 指定批量 mapper 配置的包名 -->
+        <property name="basePackage" value="com.ujiuye.crmpro.*.mapper"/>
+        <!-- 指定使用的 SqlSessionFactory -->
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+    </bean>
+
+    <!--事务管理器-->
+    <bean id="trManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+    <!--支持事务注解-->
+    <tx:annotation-driven transaction-manager="trManager"/>
+    <!--传播方式-->
+    <tx:advice id="trManagerAdvice" transaction-manager="trManager">
+        <tx:attributes>
+            <tx:method name="save*" read-only="false" propagation="REQUIRED" isolation="DEFAULT"/>
+            <tx:method name="update*" read-only="false" propagation="REQUIRED" isolation="DEFAULT"/>
+            <tx:method name="remove*" read-only="false" propagation="REQUIRED" isolation="DEFAULT"/>
+            <tx:method name="*" read-only="true"></tx:method>
+        </tx:attributes>
+    </tx:advice>
+    <!-- 事务切面切点 -->
+    <aop:config>
+        <aop:pointcut expression="execution(* com.ujiuye.crmpro.*.service.*.*(..))" id="servicePointcut"/>
+        <aop:advisor advice-ref="trManagerAdvice" pointcut-ref="servicePointcut"/>
+    </aop:config>
+
+
+</beans>
